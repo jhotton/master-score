@@ -3,56 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Score Master Pro JS</title>
+    <title>Score Master Detail</title>
     <style>
         :root { --bg: #0e1117; --card: #262730; --primary: #ff4b4b; --text: #fafafa; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         
-        /* Sidebar & Overlay */
+        /* Sidebar & Sidebar UI */
         #sidebar { position: fixed; left: -280px; top: 0; width: 250px; height: 100%; background: var(--card); border-right: 1px solid #444; transition: 0.3s; padding: 15px; z-index: 1000; overflow-y: auto; }
         #sidebar.open { left: 0; }
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; z-index: 999; }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; z-index: 999; }
         
-        /* Header & Grid */
+        /* Grid & Cards */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+        .card { background: var(--card); border: 1px solid #444; border-radius: 8px; padding: 6px; text-align: center; position: relative; }
         
-        /* Player Card */
-        .card { background: var(--card); border: 1px solid #444; border-radius: 8px; padding: 6px; text-align: center; }
-        .name { font-size: 11px; font-weight: bold; color: var(--primary); text-transform: uppercase; margin-bottom: 2px; height: 15px; overflow: hidden; }
+        .name { font-size: 11px; font-weight: bold; color: var(--primary); text-transform: uppercase; margin-bottom: 2px; height: 14px; overflow: hidden; }
         .score { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-        .controls { display: flex; gap: 4px; margin-bottom: 6px; }
         
-        /* Buttons & Inputs */
+        /* Controls */
+        .controls { display: flex; gap: 3px; margin-bottom: 6px; }
         button { border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold; }
         .btn-plus { background: #2e7d32; flex: 1; padding: 10px 0; }
         .btn-minus { background: #c62828; flex: 1; padding: 10px 0; }
-        .btn-config { background: transparent; font-size: 24px; color: var(--text); }
-        .btn-reset { background: #444; width: 100%; padding: 10px; margin-top: 20px; }
-        input[type="number"] { width: 85%; background: #0e1117; border: 1px solid #444; color: white; text-align: center; padding: 5px; border-radius: 4px; font-size: 12px; }
+        .btn-log { background: #444; font-size: 10px; padding: 2px 5px; margin-top: 5px; width: 100%; opacity: 0.8; }
         
-        /* History & Footer */
+        input[type="number"] { width: 85%; background: #0e1117; border: 1px solid #444; color: white; text-align: center; padding: 4px; border-radius: 4px; font-size: 11px; }
+
+        /* Individuel Logs (Pliable) */
+        .player-history { font-size: 10px; color: #888; margin-top: 5px; max-height: 50px; overflow-y: auto; display: none; border-top: 1px dashed #444; padding-top: 3px; }
+        .player-history.show { display: block; }
+        
+        /* Global Log */
         .history-section { margin-top: 20px; border-top: 1px solid #333; padding-top: 10px; }
-        .history-title { font-size: 12px; color: #888; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
-        #log-list { list-style: none; padding: 0; margin: 0; font-size: 12px; color: #bbb; }
-        #log-list li { padding: 3px 0; border-bottom: 1px solid #1f2128; }
+        #log-list { list-style: none; padding: 0; margin: 0; font-size: 11px; color: #bbb; }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
         <h3>⚙️ Configuration</h3>
-        <label style="font-size:12px; color:#aaa;">Nombre de joueurs :</label>
+        <label style="font-size:12px;">Joueurs :</label>
         <input type="number" id="nb-input" min="1" max="24" style="width:50px; margin-bottom:15px;">
         <div id="names-editor"></div>
-        <button class="btn-reset" onclick="resetAll()">🗑️ Tout Réinitialiser</button>
-        <button class="btn-reset" style="background:var(--primary);" onclick="toggleSidebar()">Fermer</button>
+        <button style="background:var(--primary); width:100%; padding:10px; margin-top:10px;" onclick="toggleSidebar()">Appliquer</button>
+        <button style="background:#444; width:100%; padding:10px; margin-top:10px;" onclick="resetAll()">🗑️ Reset Complet</button>
     </div>
 
     <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
     <div class="header">
-        <button class="btn-config" onclick="toggleSidebar()">☰</button>
+        <button style="background:transparent; font-size:24px; color:white;" onclick="toggleSidebar()">☰</button>
         <h2 style="color:var(--primary); font-size:18px; margin:0;">SCORE MASTER</h2>
         <div style="width:30px;"></div>
     </div>
@@ -60,23 +61,22 @@
     <div id="player-grid" class="grid"></div>
 
     <div class="history-section">
-        <div class="history-title">🕒 Dernières actions</div>
+        <div style="font-size: 12px; color: #888; margin-bottom: 5px;">🕒 Historique Global</div>
         <ul id="log-list"></ul>
     </div>
 
     <script>
-        // Charger les données ou initialiser
-        let state = JSON.parse(localStorage.getItem('scoreState')) || {
+        let state = JSON.parse(localStorage.getItem('scoreStateV2')) || {
             players: [
-                { id: 0, name: "J1", score: 0 }, { id: 1, name: "J2", score: 0 },
-                { id: 2, name: "J3", score: 0 }, { id: 3, name: "J4", score: 0 }
+                { id: 0, name: "J1", score: 0, history: [] },
+                { id: 1, name: "J2", score: 0, history: [] },
+                { id: 2, name: "J3", score: 0, history: [] },
+                { id: 3, name: "J4", score: 0, history: [] }
             ],
-            logs: []
+            globalLogs: []
         };
 
-        function save() {
-            localStorage.setItem('scoreState', JSON.stringify(state));
-        }
+        function save() { localStorage.setItem('scoreStateV2', JSON.stringify(state)); }
 
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
@@ -86,51 +86,23 @@
         }
 
         function updateScore(id, pts) {
-            if (pts === 0 || isNaN(pts)) return;
+            if (!pts || isNaN(pts)) return;
             const p = state.players.find(p => p.id === id);
             p.score += pts;
             
-            // Log
+            const entry = `${pts > 0 ? '+' : ''}${pts}`;
+            p.history.unshift(entry); // Ajout historique joueur
+            
             const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            state.logs.unshift(`${time} | ${p.name} (${pts > 0 ? '+' : ''}${pts})`);
-            if (state.logs.length > 5) state.logs.pop();
+            state.globalLogs.unshift(`${time} | ${p.name} (${entry})`);
+            if (state.globalLogs.length > 5) state.globalLogs.pop();
             
-            save();
-            render();
+            save(); render();
         }
 
-        function renderConfig() {
-            const container = document.getElementById('names-editor');
-            const nbInput = document.getElementById('nb-input');
-            nbInput.value = state.players.length;
-            
-            container.innerHTML = '';
-            state.players.forEach((p, i) => {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = p.name;
-                input.style = "width:90%; margin-bottom:5px; padding:5px; background:#0e1117; border:1px solid #444; color:white; border-radius:4px;";
-                input.oninput = (e) => { state.players[i].name = e.target.value; save(); render(); };
-                container.appendChild(input);
-            });
-
-            nbInput.onchange = (e) => {
-                const val = parseInt(e.target.value);
-                if (val > state.players.length) {
-                    for(let i=state.players.length; i<val; i++) state.players.push({id: i, name: `J${i+1}`, score:0});
-                } else {
-                    state.players = state.players.slice(0, val);
-                }
-                save(); render(); renderConfig();
-            };
-        }
-
-        function resetAll() {
-            if(confirm("Réinitialiser tous les scores et l'historique ?")) {
-                state.players.forEach(p => p.score = 0);
-                state.logs = [];
-                save(); render(); toggleSidebar();
-            }
+        function togglePlayerLog(id) {
+            const el = document.getElementById(`log-p-${id}`);
+            el.classList.toggle('show');
         }
 
         function render() {
@@ -147,12 +119,41 @@
                         <button class="btn-minus" onclick="updateScore(${p.id}, -1)">-</button>
                     </div>
                     <input type="number" placeholder="Pts" onchange="updateScore(${p.id}, parseInt(this.value)); this.value=''">
+                    <button class="btn-log" onclick="togglePlayerLog(${p.id})">📜 Détails</button>
+                    <div id="log-p-${p.id}" class="player-history">${p.history.join(', ') || 'Vide'}</div>
                 `;
                 grid.appendChild(card);
             });
+            document.getElementById('log-list').innerHTML = state.globalLogs.map(l => `<li>${l}</li>`).join('');
+        }
 
-            const logList = document.getElementById('log-list');
-            logList.innerHTML = state.logs.map(l => `<li>${l}</li>`).join('');
+        function renderConfig() {
+            const container = document.getElementById('names-editor');
+            const nbInput = document.getElementById('nb-input');
+            nbInput.value = state.players.length;
+            container.innerHTML = '';
+            state.players.forEach((p, i) => {
+                const input = document.createElement('input');
+                input.type = 'text'; input.value = p.name;
+                input.style = "width:90%; margin-bottom:5px; padding:5px; background:#0e1117; border:1px solid #444; color:white; border-radius:4px;";
+                input.oninput = (e) => { state.players[i].name = e.target.value; save(); render(); };
+                container.appendChild(input);
+            });
+            nbInput.onchange = (e) => {
+                const val = parseInt(e.target.value);
+                if (val > state.players.length) {
+                    for(let i=state.players.length; i<val; i++) state.players.push({id: i, name: `J${i+1}`, score:0, history:[]});
+                } else { state.players = state.players.slice(0, val); }
+                save(); render(); renderConfig();
+            };
+        }
+
+        function resetAll() {
+            if(confirm("Tout effacer ?")) {
+                state.players.forEach(p => { p.score = 0; p.history = []; });
+                state.globalLogs = [];
+                save(); render(); toggleSidebar();
+            }
         }
 
         render();
